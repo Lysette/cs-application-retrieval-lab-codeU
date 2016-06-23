@@ -1,12 +1,7 @@
 package com.flatironschool.javacs;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 
 import redis.clients.jedis.Jedis;
@@ -46,11 +41,15 @@ public class WikiSearch {
 	 * 
 	 * @param map
 	 */
-	private  void print() {
+	private void print() {
 		List<Entry<String, Integer>> entries = sort();
 		for (Entry<String, Integer> entry: entries) {
 			System.out.println(entry);
 		}
+	}
+	
+	private Map<String, Integer> getMap(){
+		return map;
 	}
 	
 	/**
@@ -60,8 +59,21 @@ public class WikiSearch {
 	 * @return New WikiSearch object.
 	 */
 	public WikiSearch or(WikiSearch that) {
-        // FILL THIS IN!
-		return null;
+        // TODO
+		Map<String, Integer> union = new HashMap<String, Integer>();
+		
+		// add all urls from this WikiSearch
+		for (String url : map.keySet()) {
+			union.put(url, totalRelevance(map.get(url), that.getRelevance(url)));
+		}
+		
+		// add remaining urls from that that have not been added yet
+		for (Entry<String, Integer> entry : that.getMap().entrySet()) {
+			if (!union.containsKey(entry.getKey())) {
+				union.put(entry.getKey(), entry.getValue());
+			}
+		}
+		return new WikiSearch(union);
 	}
 	
 	/**
@@ -71,8 +83,17 @@ public class WikiSearch {
 	 * @return New WikiSearch object.
 	 */
 	public WikiSearch and(WikiSearch that) {
-        // FILL THIS IN!
-		return null;
+        // TODO
+		
+		Map<String, Integer> intersection = new HashMap<String, Integer>();
+		
+		for (String url : map.keySet()) {
+			// that also contains same url
+			if (that.getRelevance(url) != 0) { 
+				intersection.put(url, totalRelevance(map.get(url), that.getRelevance(url)));
+			}
+		}
+		return new WikiSearch(intersection);
 	}
 	
 	/**
@@ -82,8 +103,17 @@ public class WikiSearch {
 	 * @return New WikiSearch object.
 	 */
 	public WikiSearch minus(WikiSearch that) {
-        // FILL THIS IN!
-		return null;
+        // TODO
+		
+		Map<String, Integer> diff = new HashMap<String, Integer>();
+		
+		for (String url : map.keySet()) {
+			if (that.getRelevance(url) == 0) {
+				diff.put(url, map.get(url));
+			}
+		}
+		
+		return new WikiSearch(diff);
 	}
 	
 	/**
@@ -104,8 +134,48 @@ public class WikiSearch {
 	 * @return List of entries with URL and relevance.
 	 */
 	public List<Entry<String, Integer>> sort() {
-        // FILL THIS IN!
-		return null;
+        // TODO
+		
+		List<Entry<String, Integer>> sorted = new ArrayList<Entry<String, Integer>>();
+		
+		// entries to sort
+		Set<Entry<String, Integer>> entries = map.entrySet();
+		
+		// relevances
+		Collection<Integer> relevance = map.values();
+	
+		// map is tied to entries and relevance, 
+		// changes in one will cause changes in the other 
+		// (ex. deletion in relevances will delete pairs in map that contain same value)
+				
+		ArrayList<Integer> sortedRel = new ArrayList<Integer>();
+		for (Integer i : relevance) {
+			sortedRel.add(i);
+		}	
+		Collections.sort(sortedRel);
+
+		for (int i = 0; i < sortedRel.size(); i++) {
+			for (Entry<String, Integer> entry : entries) {
+				if (entry.getValue() == sortedRel.get(i) && !sorted.contains(entry))
+					sorted.add(entry);
+			}
+		}
+		
+		/* I like this way better than creating an ArrayList for sorted relevances, 
+		 * but removing i from relevance also removes  it from map, and then 
+		 * the items in map get deleted
+		while (!relevance.isEmpty()) {
+			int i = Collections.min(relevance);
+			
+			for (Entry<String, Integer> entry : entries) {
+				if (entry.getValue() == i && !sorted.contains(entry)) 
+					sorted.add(entry);
+			}
+			relevance.remove(i);
+		}
+		*/
+		
+		return sorted;
 	}
 
 	/**
@@ -142,5 +212,10 @@ public class WikiSearch {
 		System.out.println("Query: " + term1 + " AND " + term2);
 		WikiSearch intersection = search1.and(search2);
 		intersection.print();
+
+		// compute the union of the searches
+		System.out.println("Query: " + term1 + " OR " + term2);
+		WikiSearch union = search1.or(search2);
+		union.print();
 	}
 }
